@@ -1,4 +1,4 @@
-import Stack from './stack';
+import Stack from "./stack";
 import Konva from "konva";
 import { createMachine, interpret } from "xstate";
 
@@ -16,7 +16,7 @@ stage.add(dessin);
 stage.add(temporaire);
 
 const MAX_POINTS = 10;
-let polyline // La polyline en cours de construction;
+let polyline; // La polyline en cours de construction;
 
 const polylineMachine = createMachine(
     {
@@ -41,7 +41,8 @@ const polylineMachine = createMachine(
                     MOUSEMOVE: {
                         actions: "setLastPoint",
                     },
-                    Escape: { // event.key
+                    Escape: {
+                        // event.key
                         target: "idle",
                         actions: "abandon",
                     },
@@ -69,12 +70,14 @@ const polylineMachine = createMachine(
                         actions: "abandon",
                     },
 
-                    Enter: { // event.key
+                    Enter: {
+                        // event.key
                         target: "idle",
                         actions: "saveLine",
                     },
 
-                    Backspace: [ // event.key
+                    Backspace: [
+                        // event.key
                         {
                             target: "manyPoints",
                             actions: "removeLastPoint",
@@ -174,6 +177,82 @@ window.addEventListener("keydown", (event) => {
 
 // bouton Undo
 const undoButton = document.getElementById("undo");
+undoButton.addEventListener("click", () => {});
+
+//Classe commande
+class Command {
+    execute() {}
+    undo() {}
+}
+
+class ConcreteCommand extends Command {
+    constructor(polyline, layer) {
+        super();
+        this.polyline = polyline;
+        this.layer = layer;
+    }
+
+    execute() {
+        this.layer.add(this.polyline);
+        this.layer.draw();
+    }
+
+    undo() {
+        this.polyline.remove();
+        this.layer.draw();
+    }
+}
+class UndoManager {
+    constructor() {
+        this.undoStack = new Stack();
+        this.redoStack = new Stack();
+    }
+
+    execute(command) {
+        command.execute();
+        this.undoStack.push(command);
+        this.redoStack.clear(); // On vide le redoStack quand une nouvelle commande est exécutée
+    }
+
+    undo() {
+        if (!this.undoStack.isEmpty()) {
+            const command = this.undoStack.pop();
+            command.undo();
+            this.redoStack.push(command);
+        }
+    }
+
+    redo() {
+        if (!this.redoStack.isEmpty()) {
+            const command = this.redoStack.pop();
+            command.execute();
+            this.undoStack.push(command);
+        }
+    }
+
+    canUndo() {
+        return !this.undoStack.isEmpty();
+    }
+
+    canRedo() {
+        return !this.redoStack.isEmpty();
+    }
+}
+
+const undoManager = new UndoManager();
+
+const undoButton = document.getElementById("undo");
 undoButton.addEventListener("click", () => {
-    
+    undoManager.undo();
+    // Activer/désactiver les boutons selon les états canUndo/canRedo
+    undoButton.disabled = !undoManager.canUndo();
+    redoButton.disabled = !undoManager.canRedo();
+});
+
+const redoButton = document.getElementById("redo");
+redoButton.addEventListener("click", () => {
+    undoManager.redo();
+    // Activer/désactiver les boutons selon les états canUndo/canRedo
+    undoButton.disabled = !undoManager.canUndo();
+    redoButton.disabled = !undoManager.canRedo();
 });
